@@ -867,22 +867,53 @@ serial" as fallback. This is untested but feel free to give us feedback on
 
 [Building for Windows:] :h5,link(start_2_6)
 
-The recommened way to do this is using CMake and Visual Studio. Install
-"CMake"_www.cmake.org and launch the associated GUI. Point the {Where is your
-source code:} input to your {src/} folder and set the {build} folder to some
-folder (recommended: make a {build} folder in your LIGGGHTS(R)-PUBLIC-base directory).
-Press {Configure} to get your system settings. You will most likely have to set
-the {VTK_DIR} option to the folder in which you built the VTK library. Once this
-is done press {Configure} again until all errors are reolved so that you can
-{Generate} the project. After that you should be able to press {Open Project} to
-open Visual Studio where you can build LIGGGHTS(R)-PUBLIC.
+LIGGGHTS(R)-PUBLIC can be built natively on Windows with Visual Studio 2022
+(MSVC), CMake and Ninja, without WSL or Cygwin. The scripts for this are in
+{packaging/windows}; its {README.md} is the complete reference (requirements,
+build options, installer, troubleshooting).
 
-The other way to do this is install and use "cygwin"_www.cygwin.org to build
-LIGGGHTS(R)-PUBLIC with a standard Linux make, just as you would on any Linux box. Your
-cygwin environment will need several packages such as cmake, g++, gcc, openmpi,
-make. Note that when compiling VTK you need to disable all rendering related VTK
-options as OpenGL won't be available. Note that this is an option that should
-only be used by advanced users.
+From the LIGGGHTS(R)-PUBLIC base directory, in a PowerShell:
+
+powershell -ExecutionPolicy Bypass -File packaging\windows\install-deps.ps1
+powershell -ExecutionPolicy Bypass -File packaging\windows\install-vtk.ps1
+packaging\windows\build.bat :pre
+
+{install-deps.ps1} (run it as Administrator) installs the Visual Studio 2022
+Build Tools with the C++ workload, CMake, Ninja, Microsoft MPI (runtime and
+SDK), Git and Inno Setup through winget, skipping what is already installed. :ulb,l
+
+{install-vtk.ps1} installs "vcpkg"_https://github.com/microsoft/vcpkg and
+builds VTK with MPI support, which the VTK dump styles require. This takes a
+few hours. The VTK-m sources needed by VTK cannot be downloaded automatically
+from gitlab.kitware.com, so the script opens the download link in the browser
+and picks the file up from the Downloads folder. :l
+
+{build.bat} builds two executables and, if Inno Setup is installed, an
+installer: :l,ule
+
+{build-win\mpi\liggghts.exe}: the parallel version (Microsoft MPI) with VTK.
+This is the default. :ulb,l
+
+{build-win\serial\liggghts.exe}: a serial version that does not need Microsoft
+MPI. It has no VTK dump styles, as these always use VTK's MPI controller. :l
+
+{build-win\installer\liggghts-VERSION-win64-setup.exe}: a single installer
+with both executables, the VTK DLLs, the examples and, when missing, the Visual
+C++ and Microsoft MPI runtimes. :l,ule
+
+To build without VTK, skip {install-vtk.ps1} and run {build.bat novtk}.
+
+Parallel runs use Microsoft MPI's {mpiexec}, e.g.
+
+mpiexec -n 4 liggghts -in in.script :pre
+
+To build by hand instead, open the "x64 Native Tools Command Prompt for VS
+2022" and run CMake on the {src} folder, e.g.
+
+cmake -S src -B build-win\mpi -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_VTK=ON "-DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
+cmake --build build-win\mpi :pre
+
+Add {-DENABLE_MPI=OFF -DENABLE_VTK=OFF} for the serial version.
 
 :line
 
