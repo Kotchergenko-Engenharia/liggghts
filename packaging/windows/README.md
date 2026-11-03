@@ -40,11 +40,22 @@ ser compilado **com a feature `mpi`**. Em um PowerShell comum:
 ```powershell
 git clone https://github.com/microsoft/vcpkg C:\vcpkg
 C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+# só release: o vcpkg compila debug + release por padrão, e o LIGGGHTS usa
+# apenas release; isto reduz o tempo de compilação quase pela metade
+Add-Content C:\vcpkg\triplets\x64-windows.cmake "`nset(VCPKG_BUILD_TYPE release)"
 C:\vcpkg\vcpkg.exe install "vtk[mpi]:x64-windows" --recurse
 ```
 
-A compilação do VTK leva de 30 min a mais de 1 h. Se o vcpkg estiver em outro
-lugar, defina `LIGGGHTS_VCPKG` antes de rodar o build (veja a seção 7).
+A compilação é longa: com MPI o vcpkg também compila VTK-m, HDF5, SEACAS e
+outras dependências, o que pode levar algumas horas (sem a linha
+`VCPKG_BUILD_TYPE`, cerca do dobro). O download do VTK-m costuma falhar com
+erro 403; veja a seção 7. Se o vcpkg estiver em outro lugar, defina
+`LIGGGHTS_VCPKG` antes de rodar o build.
+
+> A linha `VCPKG_BUILD_TYPE` altera um arquivo do próprio vcpkg; se um
+> `git pull` no vcpkg reclamar dele, rode `git -C C:\vcpkg checkout triplets\x64-windows.cmake`
+> e adicione a linha de novo. Ela só vale para pacotes compilados depois de
+> adicionada.
 
 ---
 

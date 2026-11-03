@@ -3,7 +3,7 @@ rem ---------------------------------------------------------------------------
 rem Builds LIGGGHTS for Windows with MSVC and packages it with Inno Setup.
 rem
 rem   build.bat          MPI + serial variants, without VTK
-rem   build.bat vtk      same, with VTK from vcpkg (VCPKG_ROOT or C:\vcpkg)
+rem   build.bat vtk      same, with VTK from vcpkg (LIGGGHTS_VCPKG or C:\vcpkg)
 rem
 rem Output:
 rem   build-win\mpi\liggghts.exe       parallel (needs MS-MPI runtime)
