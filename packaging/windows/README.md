@@ -18,7 +18,48 @@ São produzidas duas variantes do executável:
 
 ## 1. Pré-requisitos (máquina de build)
 
-Em um PowerShell **como Administrador**:
+Resumo, na raiz do repositório:
+
+```powershell
+# 1) em um PowerShell como Administrador (~10–30 min, baixa alguns GB)
+powershell -ExecutionPolicy Bypass -File packaging\windows\install-deps.ps1
+
+# 2) feche e reabra o terminal; depois, em um PowerShell comum
+#    (só se precisar dos dumps VTK; pode levar algumas horas)
+powershell -ExecutionPolicy Bypass -File packaging\windows\install-vtk.ps1
+
+# 3) compile e gere o instalador
+packaging\windows\build.bat vtk
+```
+
+O `-ExecutionPolicy Bypass` é necessário porque, por padrão, o Windows não
+executa scripts `.ps1` baixados; ele vale só para aquela execução.
+
+### 1.1 Ferramentas de build — `install-deps.ps1`
+
+Instala com o `winget`, pulando o que já estiver instalado:
+
+| Ferramenta | Pacote winget | Para quê |
+|---|---|---|
+| Visual Studio 2022 Build Tools, workload C++ | `Microsoft.VisualStudio.2022.BuildTools` | compilador MSVC e Windows SDK |
+| CMake | `Kitware.CMake` | configuração do build |
+| Ninja | `Ninja-build.Ninja` | execução do build |
+| MS-MPI runtime | `Microsoft.msmpi` | `mpiexec`, `msmpi.dll`; o instalador do LIGGGHTS embute uma cópia dele |
+| MS-MPI SDK | `Microsoft.msmpisdk` | headers e `.lib` do MPI |
+| Git | `Git.Git` | necessário para o vcpkg |
+| Inno Setup 6 | `JRSoftware.InnoSetup` | gera o instalador |
+
+Para apenas conferir o que falta, sem instalar (não precisa de administrador):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File packaging\windows\install-deps.ps1 -CheckOnly
+```
+
+Requer o `winget` (pacote "App Installer", já presente no Windows 10 21H2+ e
+no Windows 11).
+
+<details>
+<summary>Instalação manual equivalente</summary>
 
 ```powershell
 $common = @('--accept-source-agreements', '--accept-package-agreements', '--silent', '-e')
@@ -26,36 +67,41 @@ winget install --id Microsoft.VisualStudio.2022.BuildTools @common --override `
   "--wait --passive --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
 winget install --id Kitware.CMake @common
 winget install --id Ninja-build.Ninja @common
-winget install --id Microsoft.msmpi @common       # runtime (mpiexec, msmpi.dll)
-winget install --id Microsoft.msmpisdk @common    # headers e .lib
+winget install --id Microsoft.msmpi @common
+winget install --id Microsoft.msmpisdk @common
 winget install --id Git.Git @common
-winget install --id JRSoftware.InnoSetup @common  # gera o instalador
+winget install --id JRSoftware.InnoSetup @common
 ```
 
-### VTK (opcional, para os dumps `*/vtk` e `*/vtm`)
+</details>
+
+### 1.2 VTK (opcional, para os dumps `*/vtk` e `*/vtm`) — `install-vtk.ps1`
 
 O LIGGGHTS usa o módulo MPI do VTK em todos os dumps VTK, então o VTK precisa
-ser compilado **com a feature `mpi`**. Em um PowerShell comum:
+ser compilado **com a feature `mpi`**. O script, que não precisa de
+administrador:
 
-```powershell
-git clone https://github.com/microsoft/vcpkg C:\vcpkg
-C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
-# só release: o vcpkg compila debug + release por padrão, e o LIGGGHTS usa
-# apenas release; isto reduz o tempo de compilação quase pela metade
-Add-Content C:\vcpkg\triplets\x64-windows.cmake "`nset(VCPKG_BUILD_TYPE release)"
-C:\vcpkg\vcpkg.exe install "vtk[mpi]:x64-windows" --recurse
-```
+1. clona e inicializa o vcpkg em `C:\vcpkg` (outro lugar: `-VcpkgRoot <pasta>`);
+2. configura o triplet `x64-windows` para compilar só release, o que reduz
+   o tempo quase pela metade (para manter debug também: `-WithDebug`);
+3. obtém o código do **VTK-m**: o `vtk[mpi]` depende dele, e o GitLab da
+   Kitware responde 403 a downloads automatizados. O script abre o link no
+   navegador, espera você salvar o arquivo na pasta Downloads, confere o
+   SHA512 e o coloca no cache do vcpkg. Se já tiver o arquivo, passe
+   `-VtkmArchive <caminho\vtk-m-v2.3.0.tar.gz>`;
+4. roda `vcpkg install "vtk[mpi]:x64-windows" --recurse`.
 
-A compilação é longa: com MPI o vcpkg também compila VTK-m, HDF5, SEACAS e
-outras dependências, o que pode levar algumas horas (sem a linha
-`VCPKG_BUILD_TYPE`, cerca do dobro). O download do VTK-m costuma falhar com
-erro 403; veja a seção 7. Se o vcpkg estiver em outro lugar, defina
-`LIGGGHTS_VCPKG` antes de rodar o build.
+Pode ser executado de novo sem problemas: o que já foi feito é pulado.
 
-> A linha `VCPKG_BUILD_TYPE` altera um arquivo do próprio vcpkg; se um
-> `git pull` no vcpkg reclamar dele, rode `git -C C:\vcpkg checkout triplets\x64-windows.cmake`
-> e adicione a linha de novo. Ela só vale para pacotes compilados depois de
-> adicionada.
+A compilação é longa: além do VTK, o vcpkg compila VTK-m, HDF5, SEACAS e
+outras dependências, o que leva algumas horas (com debug, cerca do dobro).
+Se o vcpkg estiver em outro lugar que não `C:\vcpkg`, defina
+`LIGGGHTS_VCPKG` antes de rodar o `build.bat`.
+
+> A linha `set(VCPKG_BUILD_TYPE release)` é adicionada a um arquivo do
+> próprio vcpkg (`triplets\x64-windows.cmake`); se um `git pull` no vcpkg
+> reclamar dele, rode `git -C C:\vcpkg checkout triplets\x64-windows.cmake`
+> e rode o `install-vtk.ps1` de novo.
 
 ---
 
@@ -209,10 +255,14 @@ alvo `liggghts_obj` e `STUBS` é adicionado aos includes.
 
 | Arquivo | Função |
 |---|---|
+| `packaging/windows/install-deps.ps1` | instala as ferramentas de build via winget |
+| `packaging/windows/install-vtk.ps1` | instala o vcpkg e o VTK com MPI |
 | `packaging/windows/build.bat` | build das duas variantes + instalador |
 | `packaging/windows/liggghts.iss` | script do Inno Setup |
+| `packaging/windows/LEIAME.txt` | guia do usuário final, exibido pelo instalador |
 | `packaging/windows/README.md` | este documento |
 | `.gitignore` | ignora `build-win/` |
+| `.gitattributes` | mantém CRLF nos scripts de `packaging/` |
 
 ---
 
@@ -244,8 +294,8 @@ alvo `liggghts_obj` e `STUBS` é adicionado aos includes.
 |---|---|
 | `Could NOT find VTK (missing: VTK_DIR)` | Use `build.bat vtk`. O script usa `cmake --fresh`, pois o toolchain do vcpkg só é aplicado a um cache novo. |
 | `Could not find toolchain file: "C:\Program"` | O `vcvars64.bat` define `VCPKG_ROOT` apontando para o vcpkg embutido no Visual Studio. O script usa `LIGGGHTS_VCPKG` (padrão `C:\vcpkg`); defina-o se o seu vcpkg estiver em outro lugar. |
-| `vtkMPIController.h: No such file or directory` | O VTK foi instalado sem MPI. Reinstale com `vcpkg install "vtk[mpi]:x64-windows" --recurse`. |
-| vcpkg: `curl operation failed with response code 403` ao baixar `vtk-m` de `gitlab.kitware.com` | O GitLab da Kitware bloqueia downloads automatizados, e `vtk[mpi]` exige o VTK-m. Baixe pelo navegador `https://gitlab.kitware.com/vtk/vtk-m/-/archive/v2.3.0/vtk-m-v2.3.0.tar.gz`, salve como `C:\vcpkg\downloads\vtk-vtk-m-v2.3.0.tar.gz` (confira o SHA512 em `C:\vcpkg\ports\vtk-m\portfile.cmake`) e rode o `vcpkg install` de novo. |
+| `vtkMPIController.h: No such file or directory` | O VTK foi instalado sem MPI. Rode o `install-vtk.ps1`, ou `vcpkg install "vtk[mpi]:x64-windows" --recurse`. |
+| vcpkg: `curl operation failed with response code 403` ao baixar `vtk-m` de `gitlab.kitware.com` | O GitLab da Kitware bloqueia downloads automatizados, e `vtk[mpi]` exige o VTK-m. O `install-vtk.ps1` resolve isso; manualmente: baixe pelo navegador `https://gitlab.kitware.com/vtk/vtk-m/-/archive/v2.3.0/vtk-m-v2.3.0.tar.gz`, salve como `C:\vcpkg\downloads\vtk-vtk-m-v2.3.0.tar.gz` (confira o SHA512 em `C:\vcpkg\ports\vtk-m\portfile.cmake`) e rode o `vcpkg install` de novo. |
 | `'PTRDIFF_MAX': identificador não declarado` | Cabeçalhos antigos em `src/WINDOWS/extra` (veja 5.2). |
 | `multiple rules generate liggghts.lib` | Veja 5.1. |
 | `ERROR: Invalid dump style` ao rodar | O script usa um dump VTK e o executável foi compilado sem VTK (ou é a variante serial). |
