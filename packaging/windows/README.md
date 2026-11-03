@@ -74,7 +74,11 @@ O script:
 1. localiza o Visual Studio via `vswhere` e carrega o `vcvars64.bat`;
 2. configura e compila a variante MPI em `build-win\mpi`;
 3. configura e compila a variante serial em `build-win\serial` (sempre sem VTK);
-4. se o Inno Setup 6 estiver instalado, gera `build-win\installer\liggghts-<versão>-win64-setup.exe`.
+4. se o Inno Setup 6 estiver instalado, gera `build-win\installer\liggghts-<versão>-win64-setup.exe`
+   (ou `...-win64-vtk-setup.exe` com `build.bat vtk`).
+
+Sem `vtk`, o script apaga DLLs que tenham sobrado em `build-win\mpi` de uma
+build anterior com VTK, para que não entrem no instalador.
 
 Saídas:
 
@@ -113,8 +117,8 @@ Script: [`liggghts.iss`](liggghts.iss). O instalador:
 - instala `liggghts.exe`, `liggghts-serial.exe` e as DLLs de terceiros em `C:\Program Files\LIGGGHTS\bin`;
 - instala o **Visual C++ Redistributable** silenciosamente, apenas se não houver
   um runtime 14.40+ na máquina;
-- oferece instalar o **MS-MPI** (tarefa marcada por padrão, só aparece se o
-  MS-MPI ainda não estiver instalado);
+- instala o **MS-MPI** silenciosamente, apenas se ele ainda não estiver
+  instalado (o `liggghts.exe` e as DLLs do VTK dependem do `msmpi.dll`);
 - opcionalmente adiciona `bin\` ao `PATH` do sistema (removido na desinstalação);
 - instala os exemplos (componente opcional) e cria atalhos no Menu Iniciar;
 - tem interface em português e inglês e exibe a licença GPL.
@@ -133,7 +137,9 @@ Para compilar o `.iss` diretamente:
 "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" /DVcRedist=<caminho\vc_redist.x64.exe> packaging\windows\liggghts.iss
 ```
 
-Parâmetros opcionais: `/DAppVersion=x.y.z`, `/DMsMpiRedist=<caminho\msmpisetup.exe>`.
+Parâmetros opcionais: `/DAppVersion=x.y.z`, `/DMsMpiRedist=<caminho\msmpisetup.exe>`,
+`/DWithVtk` (só muda o nome do instalador para `*-vtk-setup.exe`; as DLLs do
+VTK entram sempre que estiverem em `build-win\mpi`).
 
 ---
 

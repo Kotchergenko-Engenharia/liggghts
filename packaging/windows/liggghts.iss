@@ -8,6 +8,7 @@
 ;   bin\liggghts-serial.exe   serial build (no MPI runtime needed)
 ;   bin\*.dll                 third-party DLLs next to the MPI build (e.g. VTK)
 ; and, when missing, the VC++ and MS-MPI runtimes.
+; Pass /DWithVtk when the MPI build was made with VTK (names the installer *-vtk-setup.exe).
 ; ---------------------------------------------------------------------------
 
 #define AppName      "LIGGGHTS"
@@ -15,6 +16,11 @@
   #define AppVersion "3.8.0"
 #endif
 #define BuildDir     "..\..\build-win"
+#ifdef WithVtk
+  #define Variant    "-vtk"
+#else
+  #define Variant    ""
+#endif
 
 #ifndef VcRedist
   #error Define VcRedist: path to vc_redist.x64.exe (see build.bat)
@@ -37,7 +43,7 @@ DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 LicenseFile=..\..\LICENSE
 OutputDir={#BuildDir}\installer
-OutputBaseFilename=liggghts-{#AppVersion}-win64-setup
+OutputBaseFilename=liggghts-{#AppVersion}-win64{#Variant}-setup
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
@@ -45,6 +51,7 @@ ChangesEnvironment=yes
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+InfoAfterFile=LEIAME.txt
 
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
@@ -52,15 +59,15 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
 brazilianportuguese.AddToPath=Adicionar o LIGGGHTS ao PATH do sistema
-brazilianportuguese.InstallMsMpi=Instalar o Microsoft MPI (necessário para rodar em vários núcleos)
 brazilianportuguese.Examples=Exemplos
 brazilianportuguese.Prompt=Prompt do LIGGGHTS
 brazilianportuguese.InstallingVc=Instalando o Visual C++ Redistributable...
 brazilianportuguese.InstallingMsMpi=Instalando o Microsoft MPI...
 english.AddToPath=Add LIGGGHTS to the system PATH
-english.InstallMsMpi=Install Microsoft MPI (required to run on multiple cores)
 english.Examples=Examples
 english.Prompt=LIGGGHTS prompt
+brazilianportuguese.ReadMe=Como usar o LIGGGHTS
+english.ReadMe=How to use LIGGGHTS
 english.InstallingVc=Installing Visual C++ Redistributable...
 english.InstallingMsMpi=Installing Microsoft MPI...
 
@@ -71,25 +78,28 @@ Name: "examples"; Description: "{cm:Examples}"; Types: full
 
 [Tasks]
 Name: "addtopath"; Description: "{cm:AddToPath}"
-Name: "msmpi"; Description: "{cm:InstallMsMpi}"; Check: not IsMsMpiInstalled
 
 [Files]
 Source: "{#BuildDir}\mpi\liggghts.exe"; DestDir: "{app}\bin"; Components: main; Flags: ignoreversion
 Source: "{#BuildDir}\serial\liggghts.exe"; DestDir: "{app}\bin"; DestName: "liggghts-serial.exe"; Components: main; Flags: ignoreversion
 Source: "{#BuildDir}\mpi\*.dll"; Excludes: "liggghts.dll"; DestDir: "{app}\bin"; Components: main; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\..\LICENSE"; DestDir: "{app}"; Components: main
+Source: "LEIAME.txt"; DestDir: "{app}"; Components: main
 Source: "..\..\examples\*"; DestDir: "{app}\examples"; Components: examples; Flags: recursesubdirs createallsubdirs
 Source: "{#VcRedist}"; DestDir: "{tmp}"; DestName: "vc_redist.x64.exe"; Flags: deleteafterinstall; Check: not IsVcRuntimeInstalled
-Source: "{#MsMpiRedist}"; DestDir: "{tmp}"; DestName: "msmpisetup.exe"; Flags: deleteafterinstall; Tasks: msmpi
+Source: "{#MsMpiRedist}"; DestDir: "{tmp}"; DestName: "msmpisetup.exe"; Flags: deleteafterinstall; Check: not IsMsMpiInstalled
 
 [Icons]
-Name: "{group}\{cm:Prompt}"; Filename: "{cmd}"; Parameters: "/k ""set PATH={app}\bin;%PATH%"""; WorkingDir: "{userdocs}"
+; MS-MPI's Bin is listed explicitly: right after installing MS-MPI the
+; inherited PATH may not contain it yet
+Name: "{group}\{cm:Prompt}"; Filename: "{cmd}"; Parameters: "/k ""set PATH={app}\bin;{commonpf64}\Microsoft MPI\Bin;%PATH%"""; WorkingDir: "{userdocs}"
+Name: "{group}\{cm:ReadMe}"; Filename: "{app}\LEIAME.txt"
 Name: "{group}\{cm:Examples}"; Filename: "{app}\examples"; Components: examples
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
 
 [Run]
 Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "{cm:InstallingVc}"; Flags: waituntilterminated; Check: not IsVcRuntimeInstalled
-Filename: "{tmp}\msmpisetup.exe"; Parameters: "-unattend"; StatusMsg: "{cm:InstallingMsMpi}"; Flags: waituntilterminated; Tasks: msmpi
+Filename: "{tmp}\msmpisetup.exe"; Parameters: "-unattend"; StatusMsg: "{cm:InstallingMsMpi}"; Flags: waituntilterminated; Check: not IsMsMpiInstalled
 
 [Code]
 const

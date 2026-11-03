@@ -37,13 +37,21 @@ set "COMMON_ARGS=-G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_VTK=OFF"
 rem vcvars64 sets VCPKG_ROOT to the copy bundled with Visual Studio, so the
 rem standalone vcpkg holding VTK is selected with LIGGGHTS_VCPKG instead.
 if not defined LIGGGHTS_VCPKG set "LIGGGHTS_VCPKG=C:\vcpkg"
-if /i "%~1"=="vtk" set COMMON_ARGS=-G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_VTK=ON "-DCMAKE_TOOLCHAIN_FILE=%LIGGGHTS_VCPKG%\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
+set "ISCC_ARGS="
+if /i "%~1"=="vtk" (
+  set COMMON_ARGS=-G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_VTK=ON "-DCMAKE_TOOLCHAIN_FILE=%LIGGGHTS_VCPKG%\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
+  set "ISCC_ARGS=/DWithVtk"
+)
 
 rem --fresh: the vcpkg toolchain only applies to a new cache (ninja still
 rem skips objects whose compile command did not change)
 set COMMON_ARGS=--fresh %COMMON_ARGS%
 
 set "OUT=%ROOT%\build-win"
+
+rem vcpkg copies VTK's DLLs next to liggghts.exe; drop leftovers from an
+rem earlier VTK build so they do not end up in a non-VTK installer.
+if not defined ISCC_ARGS if exist "%OUT%\mpi\*.dll" del /q "%OUT%\mpi\*.dll"
 
 echo === MPI build ===
 cmake -S "%ROOT%\src" -B "%OUT%\mpi" %COMMON_ARGS% -DENABLE_MPI=ON || exit /b 1
@@ -67,5 +75,5 @@ rem The VC++ redistributable ships with the Build Tools.
 set "VCREDIST=%VCToolsRedistDir%vc_redist.x64.exe"
 
 echo === Installer ===
-"%ISCC%" /Q "/DVcRedist=%VCREDIST%" "%~dp0liggghts.iss" || exit /b 1
+"%ISCC%" /Q "/DVcRedist=%VCREDIST%" %ISCC_ARGS% "%~dp0liggghts.iss" || exit /b 1
 echo Installer written to %OUT%\installer
