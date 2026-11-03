@@ -327,6 +327,12 @@ SET_PROPERTY(TARGET liggghts_shared PROPERTY PUBLIC_HEADER ${HEADERS})
 ADD_EXECUTABLE(liggghts_bin $<TARGET_OBJECTS:liggghts_obj>)
 SET_TARGET_PROPERTIES(liggghts_bin PROPERTIES OUTPUT_NAME liggghts)
 
+IF(WIN32)
+  # static lib and DLL import lib would both be named liggghts.lib
+  SET_TARGET_PROPERTIES(liggghts_static PROPERTIES OUTPUT_NAME liggghts_static)
+  SET_TARGET_PROPERTIES(liggghts_shared PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+ENDIF()
+
 #=======================================
 IF(ENABLE_MPI)
   FIND_PACKAGE(MPI)
