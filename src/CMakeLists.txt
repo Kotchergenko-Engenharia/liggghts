@@ -327,6 +327,12 @@ SET_PROPERTY(TARGET liggghts_shared PROPERTY PUBLIC_HEADER ${HEADERS})
 ADD_EXECUTABLE(liggghts_bin $<TARGET_OBJECTS:liggghts_obj>)
 SET_TARGET_PROPERTIES(liggghts_bin PROPERTIES OUTPUT_NAME liggghts)
 
+IF(WIN32)
+  # static lib and DLL import lib would both be named liggghts.lib
+  SET_TARGET_PROPERTIES(liggghts_static PROPERTIES OUTPUT_NAME liggghts_static)
+  SET_TARGET_PROPERTIES(liggghts_shared PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+ENDIF()
+
 #=======================================
 IF(ENABLE_MPI)
   FIND_PACKAGE(MPI)
@@ -354,6 +360,8 @@ IF(ENABLE_MPI)
     MESSAGE(FATAL_ERROR "MPI NOT found!")
   ENDIF()
 ELSE()
+  TARGET_SOURCES(liggghts_obj PRIVATE STUBS/mpi.c)
+  TARGET_INCLUDE_DIRECTORIES(liggghts_obj PUBLIC STUBS)
   SET(DISABLED_OPTIONS "${DISABLED_OPTIONS} MPI")
   MESSAGE(STATUS "Using MPI stubs")
 ENDIF()

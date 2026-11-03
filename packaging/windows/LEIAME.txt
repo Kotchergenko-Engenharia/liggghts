@@ -1,0 +1,38 @@
+﻿LIGGGHTS para Windows
+=====================
+
+Como rodar
+----------
+Abra "Prompt do LIGGGHTS" no Menu Iniciar (ou qualquer terminal, se você
+marcou a opção de adicionar o LIGGGHTS ao PATH), entre na pasta da simulação
+e rode:
+
+  Em vários núcleos (recomendado), por exemplo com 4 processos:
+    mpiexec -n 4 liggghts -in in.script
+
+  Em um único núcleo:
+    liggghts-serial -in in.script
+
+Troque "in.script" pelo nome do seu arquivo de entrada.
+
+Exemplos
+--------
+Os exemplos ficam em "examples\LIGGGHTS\Tutorials_public" dentro da pasta de
+instalação. Como a pasta de instalação é protegida, copie o exemplo para a
+sua pasta Documentos antes de rodá-lo, por exemplo:
+
+    xcopy /e /i "C:\Program Files\LIGGGHTS\examples\LIGGGHTS\Tutorials_public\packing" "%USERPROFILE%\Documents\packing"
+    cd /d "%USERPROFILE%\Documents\packing"
+    mpiexec -n 4 liggghts -in in.packing
+
+Saídas VTK (ParaView)
+---------------------
+Os dumps VTK (custom/vtk, mesh/vtk, custom/vtm, ...) só estão disponíveis no
+"liggghts" (versão paralela), mesmo rodando com 1 processo:
+
+    mpiexec -n 1 liggghts -in in.script
+
+O "liggghts-serial" não tem esses dumps; nele use dump custom ou mesh/stl.
+Se aparecer "ERROR: Invalid dump style", é esse o motivo.
+
+Os arquivos .vtk/.vtu/.vtm podem ser abertos no ParaView (https://www.paraview.org).

@@ -54,6 +54,7 @@ The LIGGGHTS® distribution includes the following files and directories:
 * `doc`: documentation
 * `examples`: simple example simulation setups
 * `lib`: libraries LIGGGHTS® can be linked with
+* `packaging`: build scripts and installers for specific platforms
 * `python`: Python wrapper on LIGGGHTS® as a library
 * `src`: source files
 
@@ -62,6 +63,9 @@ Point your browser at any of these files to get started:
 * `doc/Manual.html`: the manual
 * `doc/Section_intro.html`: hi-level introduction
 * `doc/Section_start.html`: how to build and use
+
+## Building on Windows
+LIGGGHTS® can be built natively on Windows with Visual Studio (MSVC), without WSL or Cygwin, in both an MPI and a serial variant, and packaged with an Inno Setup installer. See [`packaging/windows/README.md`](packaging/windows/README.md) (in Portuguese) for requirements, build steps and troubleshooting.
 
 ## Copyrights
 * Copyright 2012-now: DCS Computing GmbH, Linz

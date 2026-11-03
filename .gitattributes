@@ -1,0 +1,4 @@
+# Windows scripts must keep CRLF line endings regardless of core.autocrlf
+packaging/**/*.bat text eol=crlf
+packaging/**/*.cmd text eol=crlf
+packaging/**/*.iss text eol=crlf

@@ -116,14 +116,14 @@ class SpecialMessages : protected Pointers {
     if(1 == irand)
     {
         int irand2 = rand() % (comments_from_the_off_.size());
-        std::string msg = "\nComment from the off: "+comments_from_the_off_[irand2];
-        return msg.c_str();
+        msg_ = "\nComment from the off: "+comments_from_the_off_[irand2];
+        return msg_.c_str();
     }
     else if(2 == irand)
     {
         int irand2 = rand() % (tips_of_the_day_.size());
-        std::string msg = "\nTip of the day: "+tips_of_the_day_[irand2];
-        return msg.c_str();
+        msg_ = "\nTip of the day: "+tips_of_the_day_[irand2];
+        return msg_.c_str();
     }
     else return 0;
   }
@@ -131,6 +131,7 @@ class SpecialMessages : protected Pointers {
  private:
   std::vector<std::string> comments_from_the_off_;
   std::vector<std::string> tips_of_the_day_;
+  std::string msg_;
 };
 
 }
