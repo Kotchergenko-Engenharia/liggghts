@@ -7,7 +7,7 @@ São produzidas duas variantes do executável:
 
 | Variante | Arquivo instalado | Paralelismo | Dependências em tempo de execução |
 |---|---|---|---|
-| MPI | `liggghts.exe` | vários núcleos via `mpiexec` | VC++ Redistributable, MS-MPI, DLLs do VTK (se compilado com VTK) |
+| MPI | `liggghts.exe` | vários núcleos via `mpiexec` | VC++ Redistributable, MS-MPI, DLLs do VTK (exceto com `build.bat novtk`) |
 | Serial | `liggghts-serial.exe` | 1 núcleo | VC++ Redistributable |
 
 > O LIGGGHTS só paraleliza via MPI (decomposição de domínio); não há
@@ -25,12 +25,14 @@ Resumo, na raiz do repositório:
 powershell -ExecutionPolicy Bypass -File packaging\windows\install-deps.ps1
 
 # 2) feche e reabra o terminal; depois, em um PowerShell comum
-#    (só se precisar dos dumps VTK; pode levar algumas horas)
+#    (VTK com MPI; pode levar algumas horas)
 powershell -ExecutionPolicy Bypass -File packaging\windows\install-vtk.ps1
 
-# 3) compile e gere o instalador
-packaging\windows\build.bat vtk
+# 3) compile e gere o instalador (com VTK)
+packaging\windows\build.bat
 ```
+
+Se não precisar dos dumps VTK, pule o passo 2 e use `build.bat novtk`.
 
 O `-ExecutionPolicy Bypass` é necessário porque, por padrão, o Windows não
 executa scripts `.ps1` baixados; ele vale só para aquela execução.
@@ -75,11 +77,12 @@ winget install --id JRSoftware.InnoSetup @common
 
 </details>
 
-### 1.2 VTK (opcional, para os dumps `*/vtk` e `*/vtm`) — `install-vtk.ps1`
+### 1.2 VTK (dumps `*/vtk` e `*/vtm`) — `install-vtk.ps1`
 
-O LIGGGHTS usa o módulo MPI do VTK em todos os dumps VTK, então o VTK precisa
-ser compilado **com a feature `mpi`**. O script, que não precisa de
-administrador:
+O build padrão inclui VTK; só dá para pular este passo compilando com
+`build.bat novtk`. O LIGGGHTS usa o módulo MPI do VTK em todos os dumps VTK,
+então o VTK precisa ser compilado **com a feature `mpi`**. O script, que não
+precisa de administrador:
 
 1. clona e inicializa o vcpkg em `C:\vcpkg` (outro lugar: `-VcpkgRoot <pasta>`);
 2. configura o triplet `x64-windows` para compilar só release, o que reduz
@@ -111,19 +114,20 @@ Na raiz do repositório, em qualquer terminal (o script carrega o ambiente do
 MSVC sozinho):
 
 ```bat
-packaging\windows\build.bat        :: sem VTK
-packaging\windows\build.bat vtk    :: com VTK (variante MPI)
+packaging\windows\build.bat          :: padrão: variante MPI com VTK
+packaging\windows\build.bat novtk    :: variante MPI sem VTK (não precisa do vcpkg)
 ```
 
 O script:
 
 1. localiza o Visual Studio via `vswhere` e carrega o `vcvars64.bat`;
-2. configura e compila a variante MPI em `build-win\mpi`;
-3. configura e compila a variante serial em `build-win\serial` (sempre sem VTK);
-4. se o Inno Setup 6 estiver instalado, gera `build-win\installer\liggghts-<versão>-win64-setup.exe`
-   (ou `...-win64-vtk-setup.exe` com `build.bat vtk`).
+2. confere se o VTK está instalado no vcpkg (exceto com `novtk`);
+3. configura e compila a variante MPI em `build-win\mpi`;
+4. configura e compila a variante serial em `build-win\serial` (sempre sem VTK);
+5. se o Inno Setup 6 estiver instalado, gera `build-win\installer\liggghts-<versão>-win64-setup.exe`
+   (ou `...-win64-novtk-setup.exe` com `novtk`).
 
-Sem `vtk`, o script apaga DLLs que tenham sobrado em `build-win\mpi` de uma
+Com `novtk`, o script apaga DLLs que tenham sobrado em `build-win\mpi` de uma
 build anterior com VTK, para que não entrem no instalador.
 
 Saídas:
@@ -141,18 +145,16 @@ build-win\installer\*.exe           instalador
 No "x64 Native Tools Command Prompt for VS 2022":
 
 ```bat
-cmake -S src -B build-win\mpi -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_VTK=OFF
+cmake -S src -B build-win\mpi -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_VTK=ON ^
+  "-DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
 cmake --build build-win\mpi
 
 cmake -S src -B build-win\serial -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_MPI=OFF -DENABLE_VTK=OFF
 cmake --build build-win\serial
 ```
 
-Com VTK, acrescente à variante MPI:
-
-```
--DENABLE_VTK=ON "-DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
-```
+Sem VTK, troque a configuração da variante MPI por
+`cmake -S src -B build-win\mpi -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_VTK=OFF`.
 
 ---
 
@@ -184,7 +186,7 @@ Para compilar o `.iss` diretamente:
 ```
 
 Parâmetros opcionais: `/DAppVersion=x.y.z`, `/DMsMpiRedist=<caminho\msmpisetup.exe>`,
-`/DWithVtk` (só muda o nome do instalador para `*-vtk-setup.exe`; as DLLs do
+`/DNoVtk` (só muda o nome do instalador para `*-novtk-setup.exe`; as DLLs do
 VTK entram sempre que estiverem em `build-win\mpi`).
 
 ---
@@ -292,7 +294,8 @@ alvo `liggghts_obj` e `STUBS` é adicionado aos includes.
 
 | Sintoma | Causa / solução |
 |---|---|
-| `Could NOT find VTK (missing: VTK_DIR)` | Use `build.bat vtk`. O script usa `cmake --fresh`, pois o toolchain do vcpkg só é aplicado a um cache novo. |
+| `VTK not found in C:\vcpkg` (no `build.bat`) | O VTK não está instalado no vcpkg: rode o `install-vtk.ps1`, defina `LIGGGHTS_VCPKG` se o vcpkg estiver em outra pasta, ou compile sem VTK com `build.bat novtk`. |
+| `Could NOT find VTK (missing: VTK_DIR)` | Compilando manualmente, faltou o toolchain do vcpkg (`-DCMAKE_TOOLCHAIN_FILE=...`) ou um cache antigo: o toolchain só é aplicado a um cache novo, por isso o `build.bat` usa `cmake --fresh`. |
 | `Could not find toolchain file: "C:\Program"` | O `vcvars64.bat` define `VCPKG_ROOT` apontando para o vcpkg embutido no Visual Studio. O script usa `LIGGGHTS_VCPKG` (padrão `C:\vcpkg`); defina-o se o seu vcpkg estiver em outro lugar. |
 | `vtkMPIController.h: No such file or directory` | O VTK foi instalado sem MPI. Rode o `install-vtk.ps1`, ou `vcpkg install "vtk[mpi]:x64-windows" --recurse`. |
 | vcpkg: `curl operation failed with response code 403` ao baixar `vtk-m` de `gitlab.kitware.com` | O GitLab da Kitware bloqueia downloads automatizados, e `vtk[mpi]` exige o VTK-m. O `install-vtk.ps1` resolve isso; manualmente: baixe pelo navegador `https://gitlab.kitware.com/vtk/vtk-m/-/archive/v2.3.0/vtk-m-v2.3.0.tar.gz`, salve como `C:\vcpkg\downloads\vtk-vtk-m-v2.3.0.tar.gz` (confira o SHA512 em `C:\vcpkg\ports\vtk-m\portfile.cmake`) e rode o `vcpkg install` de novo. |

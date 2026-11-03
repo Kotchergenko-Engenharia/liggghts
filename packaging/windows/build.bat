@@ -2,8 +2,9 @@
 rem ---------------------------------------------------------------------------
 rem Builds LIGGGHTS for Windows with MSVC and packages it with Inno Setup.
 rem
-rem   build.bat          MPI + serial variants, without VTK
-rem   build.bat vtk      same, with VTK from vcpkg (LIGGGHTS_VCPKG or C:\vcpkg)
+rem   build.bat          MPI variant with VTK (from vcpkg, LIGGGHTS_VCPKG or
+rem                      C:\vcpkg; see install-vtk.ps1) + serial variant
+rem   build.bat novtk    same, without VTK (no vcpkg needed)
 rem
 rem Output:
 rem   build-win\mpi\liggghts.exe       parallel (needs MS-MPI runtime)
@@ -33,14 +34,24 @@ if not defined MSMPI_INC set "MSMPI_INC=%ProgramFiles(x86)%\Microsoft SDKs\MPI\I
 if not defined MSMPI_LIB64 set "MSMPI_LIB64=%ProgramFiles(x86)%\Microsoft SDKs\MPI\Lib\x64\"
 
 rem --- options ---
-set "COMMON_ARGS=-G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_VTK=OFF"
 rem vcvars64 sets VCPKG_ROOT to the copy bundled with Visual Studio, so the
 rem standalone vcpkg holding VTK is selected with LIGGGHTS_VCPKG instead.
 if not defined LIGGGHTS_VCPKG set "LIGGGHTS_VCPKG=C:\vcpkg"
-set "ISCC_ARGS="
-if /i "%~1"=="vtk" (
+set "WITH_VTK=1"
+if /i "%~1"=="novtk" set "WITH_VTK="
+if not "%~1"=="" if /i not "%~1"=="novtk" if /i not "%~1"=="vtk" (echo Unknown option "%~1". Usage: build.bat [novtk] & exit /b 1)
+
+if defined WITH_VTK (
+  if not exist "%LIGGGHTS_VCPKG%\installed\x64-windows\share\vtk" (
+    echo VTK not found in %LIGGGHTS_VCPKG%. Install it with packaging\windows\install-vtk.ps1,
+    echo set LIGGGHTS_VCPKG to your vcpkg folder, or build without VTK: build.bat novtk
+    exit /b 1
+  )
   set COMMON_ARGS=-G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_VTK=ON "-DCMAKE_TOOLCHAIN_FILE=%LIGGGHTS_VCPKG%\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
-  set "ISCC_ARGS=/DWithVtk"
+  set "ISCC_ARGS="
+) else (
+  set "COMMON_ARGS=-G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_VTK=OFF"
+  set "ISCC_ARGS=/DNoVtk"
 )
 
 rem --fresh: the vcpkg toolchain only applies to a new cache (ninja still
@@ -51,7 +62,7 @@ set "OUT=%ROOT%\build-win"
 
 rem vcpkg copies VTK's DLLs next to liggghts.exe; drop leftovers from an
 rem earlier VTK build so they do not end up in a non-VTK installer.
-if not defined ISCC_ARGS if exist "%OUT%\mpi\*.dll" del /q "%OUT%\mpi\*.dll"
+if not defined WITH_VTK if exist "%OUT%\mpi\*.dll" del /q "%OUT%\mpi\*.dll"
 
 echo === MPI build ===
 cmake -S "%ROOT%\src" -B "%OUT%\mpi" %COMMON_ARGS% -DENABLE_MPI=ON || exit /b 1

@@ -8,7 +8,7 @@
 ;   bin\liggghts-serial.exe   serial build (no MPI runtime needed)
 ;   bin\*.dll                 third-party DLLs next to the MPI build (e.g. VTK)
 ; and, when missing, the VC++ and MS-MPI runtimes.
-; Pass /DWithVtk when the MPI build was made with VTK (names the installer *-vtk-setup.exe).
+; Pass /DNoVtk when the MPI build was made without VTK (names the installer *-novtk-setup.exe).
 ; ---------------------------------------------------------------------------
 
 #define AppName      "LIGGGHTS"
@@ -16,8 +16,8 @@
   #define AppVersion "3.8.0"
 #endif
 #define BuildDir     "..\..\build-win"
-#ifdef WithVtk
-  #define Variant    "-vtk"
+#ifdef NoVtk
+  #define Variant    "-novtk"
 #else
   #define Variant    ""
 #endif
